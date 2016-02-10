@@ -1,0 +1,236 @@
+---
+title: "Testing interactive graphics by plotting air pollutant emissions in Europe"
+author: "fmartig"
+date: "8 février 2016"
+output: 
+  html_document:
+    fig_caption: true
+---
+
+Data downloaded from Eurostats [database](http://ec.europa.eu/eurostat/data/database)
+Environnement et Énergie/Environnement/Émissions de gaz à effet de serre et de polluants de l'air/ Inventaire des émissions atmosphériques/Pollution de l'air
+
+After unzipping the file in the working directory:
+```{r load_data, cache=TRUE,echo=FALSE}
+emissions<-read.table("env_air_emis.tsv",header=TRUE, sep='\t', na.strings=c("0 n",": z",": "))
+```
+
+```{r tidy, cache=TRUE,echo=FALSE}
+library(tidyr)
+#to split the first column into 4
+emissions<-separate(emissions,unit.airpol.airsect.geo.time,c("unit","airpol","sect","geo"), sep=",")
+```
+
+```{r rename_countries,echo=FALSE}
+#The country names are the ISO-3166 codes except: 
+#EL-->GR Greece
+#UK-->GB
+#Note: TR= Turkey
+emissions$geo<-gsub("UK","GB",emissions$geo)
+emissions$geo[emissions$geo=="EL"]<-"GR"
+```
+
+
+```{r, message=FALSE,echo=FALSE}
+library(dplyr)
+#convert to factor variables
+emissions<-mutate(emissions,airpol=factor(airpol),sect=factor(sect),geo=factor(geo))
+
+#change the column names from "X2013" to "2013"
+#names(emissions)[5:28]<-c(2013:1990)
+```
+
+```{r basic_analysis,eval=FALSE,echo=FALSE}
+str(emissions)
+summary(emissions)
+unique(emissions$unit)
+levels(emissions$geo)
+levels(emissions$airpol)
+```
+
+```{r sub_dataset,echo=FALSE}
+
+NH3<-filter(emissions,airpol=="NH3")
+NMVOC<-filter(emissions,airpol=="NMVOC")
+NOX<-filter(emissions,airpol=="NOX")
+PM10<-filter(emissions,airpol=="PM10")
+PM2_5<-filter(emissions,airpol=="PM2_5")
+SOX<-filter(emissions,airpol=="SOX")
+```
+
+## Emissions on NOx in 2013
+
+```{r explo_nox,eval=FALSE,echo=FALSE}
+levels(NOX$sect)
+```
+
+Select Total national emissions in sect variable and remove the total EU28 emissions and Turkey (because not plotted in Europe by googleVis)
+```{r filter_nox,echo=FALSE}
+NOX.tot<-filter(NOX,sect=="TOT_NAT",geo!="EU28",geo!="TR")
+```
+
+**Emissions of NOx in tonnes in 2013**  
+
+```{r map_Nox, results='asis', message=FALSE,echo=FALSE}
+library(googleVis)
+G1 <- gvisGeoChart(data = NOX.tot,
+                      locationvar = "geo",colorvar = "X2013",
+                      options = list(region="150",displayMode="regions",
+                                     resolution="countries",
+                                     colorAxis="{colors:['#95cebd','#0C6D51']}"))
+T1<-gvisTable(data=NOX.tot[,c(1,2,4,5,6,7,8)], options=list(height=300))
+GT1<-gvisMerge(G1,T1, horizontal=TRUE)
+print(GT1,'chart')
+# backgroundColor="#e4e2ea"
+```
+
+**Emissions of NOx in tonnes per 1,000 inhabitants in 2013**
+
+```{r echo=FALSE}
+library(tidyr)
+population<-read.table("demo_gind.tsv",header=TRUE, sep='\t', na.strings=c("0 n",": z",":"), stringsAsFactors=FALSE,strip.white=TRUE)
+
+population<-separate(population,indic_de.geo.time,c("indic","geo"), sep=",")
+```
+
+```{r echo=FALSE}
+tot_population<-population%>%
+        select(-(X1989:X1960))%>%
+        select(-(X2015:X2014))%>%
+        filter(indic=="AVG")
+
+tot_population$geo<-gsub("UK","GB",tot_population$geo)
+tot_population$geo<-gsub("EL","GR",tot_population$geo)
+
+countries<-unique(NOX.tot$geo)
+tot_population<-filter(tot_population, geo %in% countries)
+```
+
+```{r echo=FALSE}
+tot_population<-separate(tot_population,X2013,c("pop2013","note"), sep=" ", convert=TRUE, extra="drop")
+tot_population<-separate(tot_population,X2012,c("pop2012","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2011,c("pop2011","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2010,c("pop2010","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2008,c("pop2008","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2005,c("pop2005","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2004,c("pop2004","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2003,c("pop2003","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2002,c("pop2002","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2001,c("pop2001","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X2000,c("pop2000","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1999,c("pop1999","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1998,c("pop1998","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1997,c("pop1997","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1996,c("pop1996","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1995,c("pop1995","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1994,c("pop1994","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1993,c("pop1993","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1992,c("pop1992","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1991,c("pop1991","note"), sep=" ", convert=TRUE,extra="drop")
+tot_population<-separate(tot_population,X1990,c("pop1990","note"), sep=" ", convert=TRUE,extra="drop")
+
+names(tot_population)[47]<-"note.20"
+names(tot_population)[45]<-"note.19"
+tot_population<-rename(tot_population,pop2006=X2006,pop2007=X2007,pop2009=X2009)
+
+```
+
+```{r echo=FALSE}
+#Merge the two data frames
+fullDF<-merge(NOX.tot,tot_population, by.x="geo",by.y="geo")
+fullDF<-mutate(fullDF,empi2013=(X2013/pop2013)*1000)
+```
+
+
+
+`````{r map_Nox_per1000in, results='asis', message=FALSE,echo=FALSE}
+library(googleVis)
+noxperi <- gvisGeoChart(data =fullDF,
+                      locationvar = "geo",colorvar = "empi2013",
+                      options = list(region="150",displayMode="regions",
+                                     resolution="countries",
+                                     colorAxis="{colors:['#bbd2cb','#0C6D51']}"))
+print(noxperi,'chart')
+```
+
+Population data from Eurostats:  
+"Population et condition sociale/Démographie et migration/Evolution de la population - Bilan démographique et taux bruts au niveau national  
+[Metadata](http://ec.europa.eu/eurostat/cache/metadata/fr/demo_gind_esms.htm)  
+
+>"Average population
+The average population is calculated as the arithmetic mean of the population on 1st January of two consecutive years. The average population is further used in the calculation of demographic indicators, like the crude rates per 1000 inhabitants, and for several 'per capita' indicators."
+
+***
+
+**Highest levels of emissions in 2013** 
+Identify the 5 European countries with the highest total emissions in 2013 (sum of the 6 pollutants)
+
+```{r, echo=FALSE}
+Tot_em<-emissions%>%
+        filter(sect=="TOT_NAT",geo!="EU28",geo!="TR")%>%
+        group_by(geo)%>%
+        summarize(tot_airpol=sum(X2013))%>%
+        arrange(desc(tot_airpol))
+Tot_em_top<-Tot_em[1:5,]
+```
+
+Select total emissions (ie from all sectors) for the top 5 countries and plot them in an interactive chart
+
+```{r,echo=FALSE}
+top_emissions<-filter(emissions,geo %in% Tot_em_top$geo,sect=="TOT_NAT")
+```
+
+```{r, results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE}
+library(rCharts)
+n1<-nPlot(X2013 ~ geo, 
+          group = 'airpol', type = 'multiBarChart', 
+          data =top_emissions)
+n1$print('chart1',include_assets=TRUE)
+```
+
+***
+
+**Evolution of the emissions of 6 air pollutants of the 28 members of the EU from 1990 to 2013**
+
+```{r message=FALSE}
+library(reshape)
+EU_emissions<-filter(emissions,geo=="EU28",sect=="TOT_NAT")
+names(EU_emissions)[5:28]<-c(2013:1990)
+EU_emissions<-melt(EU_emissions,id=c("unit","airpol","sect","geo"))
+```
+
+First try: xPlot in rCharts. Problem: it doesn't include a legend. It's quite useless without one. 
+
+```{r,results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE, eval=FALSE}
+
+x1 <- xPlot(value ~ variable, group = "airpol", data = EU_emissions, type = "line-dotted")
+x1$print("chart2",include_assets=TRUE)
+```
+
+
+Try with mPlot in rCharts.
+```{r message=FALSE}
+#First: reformat the data
+library(tidyr)
+EU_emissions2<-spread(EU_emissions,airpol,value) #turn each pollutant into a variable
+EU_emissions2<-dplyr::rename(EU_emissions2,year=variable)
+```
+
+```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE}
+m1<- mPlot(x = "year", y = c("NH3","NMVOC","NOX","PM10","PM2_5","SOX" ), type = "Line", data = EU_emissions2)
+m1$set(pointSize = 2.5, lineWidth = 2)
+m1$print("chart3",include_assets=TRUE)
+```
+
+Try plotting a line chart with googleVis. Area chart works well but doesn't look great with two many variables and too many colours getting mixed
+
+```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE}
+library(lubridate)
+EU_emissions3<-EU_emissions2%>%
+        mutate(year=as.Date(year,"%Y"))%>%
+        mutate(year=year(year))%>%
+        arrange(year)
+
+g2<-gvisLineChart(EU_emissions3,xvar="year",yvar=c("NH3","NMVOC","NOX","PM10","PM2_5","SOX" ),options=list(width=900, height=500,title="Emissions of air pollutants from the EU-28",titleTextStyle="{fontSize:20}", vAxis="{title:'Emissions (tonnes)'}"))
+print(g2,'chart')
+```
