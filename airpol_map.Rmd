@@ -1,16 +1,13 @@
 ---
-title: "Testing interactive graphics by plotting air pollutant emissions in Europe"
-author: "fmartig"
-date: "8 février 2016"
+title: "Testing Interactive Graphics with R"
+subtitle: "Plotting the Emissions of Air Pollutants in Europe"
 output: 
   html_document:
     fig_caption: true
 ---
 
-Data downloaded from Eurostats [database](http://ec.europa.eu/eurostat/data/database)
-Environnement et Énergie/Environnement/Émissions de gaz à effet de serre et de polluants de l'air/ Inventaire des émissions atmosphériques/Pollution de l'air
+The data were downloaded from Eurostats [database](http://ec.europa.eu/eurostat/data/database) /Environnement et Énergie/Environnement/Émissions de gaz à effet de serre et de polluants de l'air/ Inventaire des émissions atmosphériques/Pollution de l'air
 
-After unzipping the file in the working directory:
 ```{r load_data, cache=TRUE,echo=FALSE}
 emissions<-read.table("env_air_emis.tsv",header=TRUE, sep='\t', na.strings=c("0 n",": z",": "))
 ```
@@ -49,35 +46,29 @@ levels(emissions$airpol)
 ```
 
 ```{r sub_dataset,echo=FALSE}
-
-NH3<-filter(emissions,airpol=="NH3")
-NMVOC<-filter(emissions,airpol=="NMVOC")
 NOX<-filter(emissions,airpol=="NOX")
-PM10<-filter(emissions,airpol=="PM10")
-PM2_5<-filter(emissions,airpol=="PM2_5")
-SOX<-filter(emissions,airpol=="SOX")
 ```
 
-## Emissions on NOx in 2013
 
 ```{r explo_nox,eval=FALSE,echo=FALSE}
 levels(NOX$sect)
 ```
 
-Select Total national emissions in sect variable and remove the total EU28 emissions and Turkey (because not plotted in Europe by googleVis)
 ```{r filter_nox,echo=FALSE}
 NOX.tot<-filter(NOX,sect=="TOT_NAT",geo!="EU28",geo!="TR")
 ```
 
 **Emissions of NOx in tonnes in 2013**  
 
+Total national emissions of NOx were selected in the dataset. The emissions from the whole EU (EU28) were excluded.   
+Turkey is included in the dataset, but it is not within Europe's boundaries on GoogleVis map. Thus, it was excluded as well.
 ```{r map_Nox, results='asis', message=FALSE,echo=FALSE}
 library(googleVis)
 G1 <- gvisGeoChart(data = NOX.tot,
                       locationvar = "geo",colorvar = "X2013",
                       options = list(region="150",displayMode="regions",
                                      resolution="countries",
-                                     colorAxis="{colors:['#95cebd','#0C6D51']}"))
+                                     colorAxis="{colors:['#bbd2cb','#0C6D51']}"))
 T1<-gvisTable(data=NOX.tot[,c(1,2,4,5,6,7,8)], options=list(height=300))
 GT1<-gvisMerge(G1,T1, horizontal=TRUE)
 print(GT1,'chart')
@@ -141,8 +132,6 @@ fullDF<-merge(NOX.tot,tot_population, by.x="geo",by.y="geo")
 fullDF<-mutate(fullDF,empi2013=(X2013/pop2013)*1000)
 ```
 
-
-
 `````{r map_Nox_per1000in, results='asis', message=FALSE,echo=FALSE}
 library(googleVis)
 noxperi <- gvisGeoChart(data =fullDF,
@@ -153,17 +142,18 @@ noxperi <- gvisGeoChart(data =fullDF,
 print(noxperi,'chart')
 ```
 
-Population data from Eurostats:  
-"Population et condition sociale/Démographie et migration/Evolution de la population - Bilan démographique et taux bruts au niveau national  
+Population data were obtained from Eurostats:  
+"Population et condition sociale/Démographie et migration/Evolution de la population - Bilan démographique et taux bruts au niveau national.    
 [Metadata](http://ec.europa.eu/eurostat/cache/metadata/fr/demo_gind_esms.htm)  
 
->"Average population
-The average population is calculated as the arithmetic mean of the population on 1st January of two consecutive years. The average population is further used in the calculation of demographic indicators, like the crude rates per 1000 inhabitants, and for several 'per capita' indicators."
+The emissions of NOx previously plotted were divided by each country's number of inhabitants. The variable "average population" was used.
+"The average population is calculated as the arithmetic mean of the population on 1st January of two consecutive years. The average population is further used in the calculation of demographic indicators, like the crude rates per 1000 inhabitants, and for several 'per capita' indicators."
 
 ***
 
 **Highest levels of emissions in 2013** 
-Identify the 5 European countries with the highest total emissions in 2013 (sum of the 6 pollutants)
+
+The countries with the highest levels of total emissions in 2013 (ie sum of all air pollutants) were identified and selected. Their total emissions (ie all sectors combined) for each pollutant are plotted below in an interactive chart.   
 
 ```{r, echo=FALSE}
 Tot_em<-emissions%>%
@@ -174,7 +164,6 @@ Tot_em<-emissions%>%
 Tot_em_top<-Tot_em[1:5,]
 ```
 
-Select total emissions (ie from all sectors) for the top 5 countries and plot them in an interactive chart
 
 ```{r,echo=FALSE}
 top_emissions<-filter(emissions,geo %in% Tot_em_top$geo,sect=="TOT_NAT")
@@ -192,45 +181,137 @@ n1$print('chart1',include_assets=TRUE)
 
 **Evolution of the emissions of 6 air pollutants of the 28 members of the EU from 1990 to 2013**
 
-```{r message=FALSE}
+Time-series were plotted next. The total emissions (ie all sectors combined) of the six air pollutants for the whole EU (ie the 28 members) were plotted versus time. 
+
+```{r message=FALSE, echo=FALSE}
 library(reshape)
 EU_emissions<-filter(emissions,geo=="EU28",sect=="TOT_NAT")
 names(EU_emissions)[5:28]<-c(2013:1990)
 EU_emissions<-melt(EU_emissions,id=c("unit","airpol","sect","geo"))
 ```
 
-First try: xPlot in rCharts. Problem: it doesn't include a legend. It's quite useless without one. 
+First try: `xPlot` in `rCharts`. Problem: the plot doesn't include a legend and there is no obvious way to add one. It's quite useless that way. 
 
-```{r,results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE, eval=FALSE}
+```{r,results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE}
 
 x1 <- xPlot(value ~ variable, group = "airpol", data = EU_emissions, type = "line-dotted")
 x1$print("chart2",include_assets=TRUE)
 ```
 
-
-Try with mPlot in rCharts.
-```{r message=FALSE}
+`mPlot` in `rCharts`: much better for time-series with any number of y variables.
+```{r message=FALSE, echo=FALSE}
 #First: reformat the data
 library(tidyr)
 EU_emissions2<-spread(EU_emissions,airpol,value) #turn each pollutant into a variable
 EU_emissions2<-dplyr::rename(EU_emissions2,year=variable)
 ```
 
-```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE}
+```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE}
 m1<- mPlot(x = "year", y = c("NH3","NMVOC","NOX","PM10","PM2_5","SOX" ), type = "Line", data = EU_emissions2)
-m1$set(pointSize = 2.5, lineWidth = 2)
+m1$set(pointSize = 2.5, lineWidth = 2.5)
 m1$print("chart3",include_assets=TRUE)
 ```
 
-Try plotting a line chart with googleVis. Area chart works well but doesn't look great with two many variables and too many colours getting mixed
+Try plotting a line chart with `googleVis`. The Area Chart function works well but the resulting plot doesn't look good with two many variables and too many colours getting mixed. A Line Chart produces better-looking outputs.
 
-```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE,echo=FALSE}
+```{r message=FALSE, echo=FALSE}
 library(lubridate)
 EU_emissions3<-EU_emissions2%>%
         mutate(year=as.Date(year,"%Y"))%>%
         mutate(year=year(year))%>%
         arrange(year)
+```
 
+```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE}
 g2<-gvisLineChart(EU_emissions3,xvar="year",yvar=c("NH3","NMVOC","NOX","PM10","PM2_5","SOX" ),options=list(width=900, height=500,title="Emissions of air pollutants from the EU-28",titleTextStyle="{fontSize:20}", vAxis="{title:'Emissions (tonnes)'}"))
 print(g2,'chart')
 ```
+
+***
+**Time series: emissions of SOx by sector in France**
+
+Explanations on the sector classification can be found in the [manual](http://www.eea.europa.eu/data-and-maps/data/national-emissions-reported-to-the-convention-on-long-range-transboundary-air-pollution-lrtap-convention-9/air-pollutant-emissions-data-viewer-lrtap-convention-manual/air-pollutant-emissions-data-viewer-lrtap-convention-manual/at_download/file)   
+
+The emissions of sulfur oxides in France over the years were selected. Only the four sectors with the highest levels of emissions were kept.
+
+```{r, echo=FALSE}
+SOX_FR<-emissions%>%
+        filter(geo=="FR",airpol=="SOX")%>%
+        select(-c(1,2,4))
+names(SOX_FR)[2:25]<-c(2013:1990)
+SOX_FR<-melt(SOX_FR,id=c("sect"))
+SOX_FR<-spread(SOX_FR,sect,value)
+SOX_FR<-SOX_FR%>%
+        dplyr::rename(year=variable)
+```
+
+```{r results='asis', comment=NA, message=FALSE, cache=FALSE,tidy=FALSE}
+m2<- mPlot(x = "year", y = c("SE1_CIH","SE1_EPD","SE1_EUI","SE1_NRD","SE1_RD","SE2_IP","SE6_WST"), type = "Line", data = SOX_FR)
+m2$set(pointSize = 0, lineWidth = 1)
+m2$print('chart4',include_assets=TRUE)
+```
+
+The correspondance between code and sectors is given in the table below.
+```{r results='asis', echo=FALSE}
+code<-unique(emissions$sect)
+sectors<-c("Commercial, institutional and households","Energy production and distribution","Energy use in industry","Non-road transport","Road transport","Industrial processes and product use","Agriculture","Waste","Other","National total for the entire territory (based on fuel sold)")
+sect_table<-data.frame(Code=code,Sector=sectors)
+library(knitr)
+kable(sect_table)
+```
+
+***
+
+**Motion chart: evolution of the emissions of greenhouse gases and other air pollutants**
+
+The dataset containing greenhouse gas emissions was obtained from Eurostats as well.
+```{r, echo=FALSE,message=FALSE}
+#tidying the ghg emissions dataset
+
+gge<-read.table("env_air_gge.tsv", sep="\t", header=TRUE,strip.white=TRUE, na.strings=":")
+#library(tidyr)
+gge<-separate(gge,unit.airpol.airemsect.geo.time, c("unit","airpol","sect","geo"),sep=",")
+gge$geo[gge$geo=="UK"]<-"GB"
+gge$geo<-gsub("EL","GR",gge$geo)
+names(gge)[5:33]<-c(2013:1985)
+#library(reshape)
+gge<-melt(gge,id=c("unit","airpol","sect","geo"))
+#library(dplyr)
+years<-c(1990:2013)
+gge_tot<-gge%>%
+        dplyr::rename(year=variable)%>%
+        dplyr::rename(emissions=value)%>%
+        group_by(geo,year)%>%
+        summarize(tot_ghg=sum(emissions))%>%
+        filter(year %in% years,geo!="EU15")
+```
+
+```{r, message=FALSE,echo=FALSE}
+#airpollutant dataset
+airp<-read.table("env_air_emis.tsv",header=TRUE, sep='\t', na.strings=c("0 n",": z",": "))
+airp<-separate(airp,unit.airpol.airsect.geo.time,c("unit","airpol","sect","geo"), sep=",")
+airp$geo<-gsub("UK","GB",airp$geo)
+airp$geo[airp$geo=="EL"]<-"GR"
+names(airp)[5:28]<-c(2013:1990)
+airp<-melt(airp,id=c("unit","airpol","sect","geo"))
+airp_tot<-airp%>%
+        filter(sect=="TOT_NAT")%>%
+        dplyr::rename(year=variable)%>%
+        group_by(geo,year)%>%
+        summarize(tot_air=sum(value))%>%
+        mutate(tot_air=tot_air/1000)
+ghg_air<-merge(gge_tot,airp_tot)
+ghg_air$year<-as.Date(ghg_air$year,"%Y")
+```
+
+```{r, comment=NA,results='asis',message=FALSE}
+countries<-c("FR","GB","DE","PL","IT","ES")
+subdata<-filter(ghg_air,geo %in% countries)
+library(googleVis)
+m3<-gvisMotionChart(subdata, idvar="geo", timevar="year", x="tot_ghg",y="tot_air",options = list(width = 700, height = 500))
+print(m3,tag='chart')
+```
+
+The greenhouse gas variable is the aggregate of six gases: CO2,N2O,CH4,HFC,PFC,SF6 in CO2 equivalents. For each country and each year, the emissions for each sector were added in order to obtain the total national emissions. 
+The air pollutant variable is the aggregate of each country total emissions of NH3, NMVOC, NOx, PM10, PM2_5 and SOx. 
+Both variables are given in thousand tonnes.
